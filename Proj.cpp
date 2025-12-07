@@ -2,385 +2,392 @@
 #include <string>
 using namespace std;
 
-// ==================== CLASSES ====================
-class Player {
+class player {
 public:
     string name;
     int runs, wickets;
-    Player* next;
-    Player(string n = "") : name(n), runs(0), wickets(0), next(NULL) {}
+    player *next;
+    
+    player(string n = "") : name(n), runs(0), wickets(0), next(NULL) {}
 };
 
-class Team {
+class team {
 public:
     string name;
-    Player* players;
-    int played, won, lost, tied, points, playerCount;
-    Team* next;
+    player *plist;
+    int played, won, lost, tied, points, pcount;
+    team *next;
     
-    Team(string n = "") : name(n), players(NULL), played(0), won(0), 
-                          lost(0), tied(0), points(0), playerCount(0), next(NULL) {}
+    team(string n = "") : name(n), plist(NULL), played(0), won(0),lost(0), tied(0), points(0), pcount(0), next(NULL) {}
     
-    void addPlayer(string pName) {
-        Player* p = new Player(pName);
-        if (!players) players = p;
+    void addplayer(string pname) {
+        player *p = new player(pname);
+        if(!plist) plist = p;
         else {
-            Player* temp = players;
-            while (temp->next) temp = temp->next;
+            player *temp = plist;
+            while(temp->next) temp = temp->next;
             temp->next = p;
         }
-        playerCount++;
+        pcount++;
     }
     
-    void removeLastPlayer() {
-        if (!players) return;
-        if (!players->next) { delete players; players = NULL; playerCount--; return; }
-        Player* temp = players;
-        while (temp->next->next) temp = temp->next;
+    void removelastplayer() {
+        if(!plist) return;
+        if(!plist->next) { delete plist; plist = NULL; pcount--; return; }
+        player *temp = plist;
+        while(temp->next->next) temp = temp->next;
         delete temp->next;
         temp->next = NULL;
-        playerCount--;
+        pcount--;
     }
 };
 
-class Match {
+class match {
 public:
     string team1, team2, winner;
     int score1, score2;
-    bool completed;
-    Match* next;
+    bool done;
+    match *next;
     
-    Match(string t1, string t2) : team1(t1), team2(t2), winner(""), 
-                                  score1(0), score2(0), completed(false), next(NULL) {}
+    match(string t1, string t2) : team1(t1), team2(t2), winner(""),score1(0), score2(0), done(false), next(NULL) {}
 };
 
-class UndoAction {
+class undoaction {
 public:
-    string type, data1, data2;
-    int int1, int2;
-    UndoAction* next;
+    string type, d1, d2;
+    int v1, v2;
+    undoaction *next;
     
-    UndoAction(string t, string d1="", string d2="", int i1=0, int i2=0) 
-        : type(t), data1(d1), data2(d2), int1(i1), int2(i2), next(NULL) {}
+    undoaction(string t, string a="", string b="", int x=0, int y=0)
+        : type(t), d1(a), d2(b), v1(x), v2(y), next(NULL) {}
 };
 
-// ==================== SORTING ALGORITHMS ====================
-class Sorter {
+class sorter {
 public:
-    // Merge Sort for Teams (Recursive)
-    static Team* mergeSorted(Team* l, Team* r) {
-        if (!l) return r;
-        if (!r) return l;
-        if (l->points > r->points || (l->points == r->points && l->won > r->won)) {
-            l->next = mergeSorted(l->next, r);
+    static team* mergesorted(team *l, team *r) {
+        if(!l) return r;
+        if(!r) return l;
+        if(l->points > r->points || (l->points==r->points && l->won > r->won)) {
+            l->next = mergesorted(l->next, r);
             return l;
         }
-        r->next = mergeSorted(l, r->next);
+        r->next = mergesorted(l, r->next);
         return r;
     }
     
-    static Team* mergeSort(Team* head) {
-        if (!head || !head->next) return head;
-        Team *slow = head, *fast = head->next;
-        while (fast && fast->next) { slow = slow->next; fast = fast->next->next; }
-        Team* mid = slow->next;
+    static team* mergesort(team *head) {
+        if(!head || !head->next) return head;
+        team *slow = head, *fast = head->next;
+        while(fast && fast->next) { slow=slow->next; fast=fast->next->next; }
+        team *mid = slow->next;
         slow->next = NULL;
-        return mergeSorted(mergeSort(head), mergeSort(mid));
+        return mergesorted(mergesort(head), mergesort(mid));
     }
     
-    // Quick Sort for Players (Recursive)
-    static Player* getLast(Player* h) {
-        while (h && h->next) h = h->next;
+    static player* getlast(player *h) {
+        while(h && h->next) h=h->next;
         return h;
     }
     
-    static Player* partition(Player* head, Player* end, Player** newHead, Player** newEnd) {
-        Player *pivot = end, *prev = NULL, *cur = head, *tail = pivot;
-        while (cur != pivot) {
-            if (cur->runs > pivot->runs) {
-                if (!*newHead) *newHead = cur;
+    static player* partition(player *head, player *end, player **newHead, player **newEnd) {
+        player *pivot = end, *prev=NULL, *cur=head, *tail=pivot;
+        
+        while(cur != pivot) {
+            if(cur->runs > pivot->runs) {
+                if(!*newHead) *newHead = cur;
                 prev = cur;
                 cur = cur->next;
             } else {
-                if (prev) prev->next = cur->next;
-                Player* temp = cur->next;
+                if(prev) prev->next = cur->next;
+                player *temp = cur->next;
                 cur->next = NULL;
                 tail->next = cur;
                 tail = cur;
                 cur = temp;
             }
         }
-        if (!*newHead) *newHead = pivot;
+        
+        if(!*newHead) *newHead = pivot;
         *newEnd = tail;
         return pivot;
     }
     
-    static Player* quickSortRec(Player* head, Player* end) {
-        if (!head || head == end) return head;
-        Player *newHead = NULL, *newEnd = NULL;
-        Player* pivot = partition(head, end, &newHead, &newEnd);
-        if (newHead != pivot) {
-            Player* temp = newHead;
-            while (temp->next != pivot) temp = temp->next;
-            temp->next = NULL;
-            newHead = quickSortRec(newHead, temp);
-            temp = getLast(newHead);
+    static player* quicksortrec(player *head, player *end) {
+        if(!head || head==end) return head;
+        player *newHead=NULL, *newEnd=NULL;
+        player *pivot = partition(head, end, &newHead, &newEnd);
+        
+        if(newHead != pivot) {
+            player *temp = newHead;
+            while(temp->next != pivot) temp=temp->next;
+            temp->next=NULL;
+            newHead = quicksortrec(newHead, temp);
+            temp = getlast(newHead);
             temp->next = pivot;
         }
-        pivot->next = quickSortRec(pivot->next, newEnd);
+        
+        pivot->next = quicksortrec(pivot->next, newEnd);
         return newHead;
     }
     
-    static Player* quickSort(Player* head) {
-        return head ? quickSortRec(head, getLast(head)) : NULL;
+    static player* quicksort(player *head) {
+        return head ? quicksortrec(head, getlast(head)) : NULL;
     }
 };
 
-// ==================== TOURNAMENT MANAGEMENT ====================
-class Tournament {
+class tournament {
 private:
-    Team* teams;
-    Match* matches;
-    UndoAction* undoStack;
-    int teamCount, matchCount;
+    team *tlist;
+    match *mlist;
+    undoaction *ustack;
+    int tcount, mcount;
     
     void pause() { cout << "\nPress Enter..."; cin.ignore(); cin.get(); }
     
-    Team* findTeam(string name) {
-        Team* t = teams;
-        while (t && t->name != name) t = t->next;
+    team* findteam(string nm) {
+        team *t = tlist;
+        while(t && t->name != nm) t=t->next;
         return t;
     }
     
-    Team* getTeamByIndex(int index) {
-        Team* t = teams;
-        for (int i = 1; i < index && t; i++) t = t->next;
+    team* teambyindex(int idx) {
+        team *t = tlist;
+        for(int i=1;i<idx && t;i++) t=t->next;
         return t;
     }
     
-    Match* getMatchByIndex(int index) {
-        Match* m = matches;
-        for (int i = 1; i < index && m; i++) m = m->next;
+    match* matchbyindex(int idx) {
+        match *m = mlist;
+        for(int i=1;i<idx && m;i++) m=m->next;
         return m;
     }
     
-    void pushUndo(string type, string d1="", string d2="", int i1=0, int i2=0) {
-        UndoAction* u = new UndoAction(type, d1, d2, i1, i2);
-        u->next = undoStack;
-        undoStack = u;
+    void pushundo(string type, string a="", string b="", int x=0, int y=0) {
+        undoaction *u = new undoaction(type, a, b, x, y);
+        u->next = ustack;
+        ustack = u;
     }
     
 public:
-    Tournament() : teams(NULL), matches(NULL), undoStack(NULL), teamCount(0), matchCount(0) {}
+    tournament() : tlist(NULL), mlist(NULL), ustack(NULL), tcount(0), mcount(0) {}
     
-    void createTeam() {
-        cout << "\n=== CREATE TEAM ===\n";
-        string name;
+    void createteam() {
+        cout << "\n=== Create Team ===\n";
+        string nm;
         cout << "Team name: ";
         cin.ignore();
-        getline(cin, name);
-        if (name.empty()) { cout << "Error: Empty name!\n"; pause(); return; }
+        getline(cin, nm);
+        if(nm.empty()) { cout<<"Error: Empty name!\n"; pause(); return; }
         
-        Team* t = new Team(name);
-        if (!teams) teams = t;
+        team *t = new team(nm);
+        if(!tlist) tlist = t;
         else {
-            Team* temp = teams;
-            while (temp->next) temp = temp->next;
+            team *temp = tlist;
+            while(temp->next) temp=temp->next;
             temp->next = t;
         }
-        teamCount++;
-        pushUndo("TEAM", name);
-        cout << "? Team created!\n";
+        
+        tcount++;
+        pushundo("team", nm);
+        cout<<"Team created successfully!\n";
         pause();
     }
     
-    void addPlayer() {
-        cout << "\n=== ADD PLAYER ===\n";
-        if (!teams) { cout << "No teams!\n"; pause(); return; }
+    void addplayer() {
+        cout << "\n=== Add Player ===\n";
+        if(!tlist) { cout<<"No teams available!\n"; pause(); return; }
         
-        cout << "Teams:\n";
-        Team* t = teams;
-        int i = 1;
-        while (t) { cout << i++ << ". " << t->name << "\n"; t = t->next; }
+        cout<<"Teams:\n";
+        team *t = tlist;
+        int idx=1;
+        while(t) { cout<<idx++<<". "<<t->name<<"\n"; t=t->next; }
         
-        int choice;
-        cout << "Select team: "; cin >> choice;
-        t = getTeamByIndex(choice);
-        if (!t) { cout << "Invalid!\n"; pause(); return; }
+        int ch;
+        cout<<"Select team: ";
+        cin>>ch;
+        t = teambyindex(ch);
+        if(!t) { cout<<"Invalid selection!\n"; pause(); return; }
         
-        string name;
-        cout << "Player name: ";
+        string nm;
+        cout<<"Player name: ";
         cin.ignore();
-        getline(cin, name);
-        if (name.empty()) { cout << "Error: Empty name!\n"; pause(); return; }
+        getline(cin, nm);
+        if(nm.empty()) { cout<<"Error: Empty name!\n"; pause(); return; }
         
-        t->addPlayer(name);
-        pushUndo("PLAYER", t->name, name);
-        cout << "? Player added!\n";
+        t->addplayer(nm);
+        pushundo("player", t->name, nm);
+        cout<<"Player added successfully!\n";
         pause();
     }
     
-    void addFixture() {
-        cout << "\n=== ADD FIXTURE ===\n";
-        if (teamCount < 2) { cout << "Need 2+ teams!\n"; pause(); return; }
+    void addfixture() {
+        cout << "\n=== Add Fixture ===\n";
+        if(tcount < 2) { cout<<"Need at least 2 teams!\n"; pause(); return; }
         
-        cout << "Teams:\n";
-        Team* t = teams;
-        int i = 1;
-        while (t) { cout << i++ << ". " << t->name << "\n"; t = t->next; }
+        cout<<"Teams:\n";
+        team *t = tlist;
+        int idx=1;
+        while(t) { cout<<idx++<<". "<<t->name<<"\n"; t=t->next; }
         
-        int c1, c2;
-        cout << "Team 1: "; cin >> c1;
-        cout << "Team 2: "; cin >> c2;
+        int a,b;
+        cout<<"Team 1: "; cin>>a;
+        cout<<"Team 2: "; cin>>b;
         
-        Team *t1 = getTeamByIndex(c1), *t2 = getTeamByIndex(c2);
-        if (!t1 || !t2 || t1 == t2) { cout << "Invalid!\n"; pause(); return; }
+        team *t1 = teambyindex(a);
+        team *t2 = teambyindex(b);
+        if(!t1 || !t2 || t1==t2) { cout<<"Invalid selection!\n"; pause(); return; }
         
-        Match* m = new Match(t1->name, t2->name);
-        if (!matches) matches = m;
+        match *m = new match(t1->name, t2->name);
+        if(!mlist) mlist = m;
         else {
-            Match* temp = matches;
-            while (temp->next) temp = temp->next;
-            temp->next = m;
+            match *temp = mlist;
+            while(temp->next) temp=temp->next;
+            temp->next=m;
         }
-        matchCount++;
-        pushUndo("FIXTURE", t1->name, t2->name);
-        cout << "? Fixture added!\n";
+        
+        mcount++;
+        pushundo("fixture", t1->name, t2->name);
+        cout<<"Fixture added successfully!\n";
         pause();
     }
     
-    void enterResult() {
-        cout << "\n=== ENTER RESULT ===\n";
-        if (!matches) { cout << "No fixtures!\n"; pause(); return; }
+    void enterresult() {
+        cout << "\n=== Enter Result ===\n";
+        if(!mlist) { cout<<"No fixtures available!\n"; pause(); return; }
         
-        cout << "Pending matches:\n";
-        Match* m = matches;
-        int i = 1;
-        while (m) {
-            if (!m->completed) cout << i << ". " << m->team1 << " vs " << m->team2 << "\n";
-            i++;
-            m = m->next;
+        cout<<"Pending matches:\n";
+        match *m = mlist;
+        int idx=1;
+        while(m) {
+            if(!m->done) cout<<idx<<". "<<m->team1<<" vs "<<m->team2<<"\n";
+            idx++;
+            m=m->next;
         }
         
-        int num;
-        cout << "Select: "; cin >> num;
-        m = getMatchByIndex(num);
-        if (!m || m->completed) { cout << "Invalid!\n"; pause(); return; }
+        int ch;
+        cout<<"Select match: ";
+        cin>>ch;
+        m = matchbyindex(ch);
         
-        cout << m->team1 << " score: "; cin >> m->score1;
-        cout << m->team2 << " score: "; cin >> m->score2;
+        if(!m || m->done) { cout<<"Invalid selection!\n"; pause(); return; }
         
-        Team* t1 = findTeam(m->team1);
-        Team* t2 = findTeam(m->team2);
+        cout<<m->team1<<" score: "; cin>>m->score1;
+        cout<<m->team2<<" score: "; cin>>m->score2;
         
-        if (m->score1 > m->score2) {
+        team *t1 = findteam(m->team1);
+        team *t2 = findteam(m->team2);
+        
+        if(m->score1 > m->score2) {
             m->winner = m->team1;
-            t1->won++; t1->points += 2; t2->lost++;
-        } else if (m->score2 > m->score1) {
+            t1->won++; t1->points+=2; t2->lost++;
+        } else if(m->score2 > m->score1) {
             m->winner = m->team2;
-            t2->won++; t2->points += 2; t1->lost++;
+            t2->won++; t2->points+=2; t1->lost++;
         } else {
             t1->tied++; t2->tied++;
             t1->points++; t2->points++;
         }
         
         t1->played++; t2->played++;
-        m->completed = true;
-        pushUndo("RESULT", m->team1, m->team2, m->score1, m->score2);
-        cout << "? Result recorded!\n";
+        m->done = true;
+        
+        pushundo("result", m->team1, m->team2, m->score1, m->score2);
+        cout<<"Result saved successfully!\n";
         pause();
     }
     
-    void viewPoints() {
-        cout << "\n=== POINTS TABLE ===\n\n";
-        if (!teams) { cout << "No teams!\n"; pause(); return; }
+    void viewpoints() {
+        cout<<"\n=== Points Table ===\n\n";
+        if(!tlist) { cout<<"No teams available!\n"; pause(); return; }
         
-        Team* sorted = Sorter::mergeSort(teams);
-        cout << "Pos Team                 P   W   L   T  Pts\n";
-        cout << "--------------------------------------------\n";
+        team *sorted = sorter::mergesort(tlist);
         
-        int pos = 1;
-        while (sorted) {
-            cout << pos++ << ".  " << sorted->name;
-            for (int i = sorted->name.length(); i < 20; i++) cout << " ";
-            cout << sorted->played << "   " << sorted->won << "   " 
-                 << sorted->lost << "   " << sorted->tied << "  " << sorted->points << "\n";
+        cout<<"Pos  Team                 P   W   L   T   Pts\n";
+        cout<<"----------------------------------------------\n";
+        
+        int pos=1;
+        while(sorted) {
+            cout<<pos++<<".   "<<sorted->name;
+            for(int i=sorted->name.length(); i<20; i++) cout<<" ";
+            cout<<sorted->played<<"   "<<sorted->won<<"   "<<sorted->lost<<"   "<<sorted->tied<<"   "<<sorted->points<<"\n";
             sorted = sorted->next;
         }
         pause();
     }
     
-    void viewTeams() {
-        cout << "\n=== ALL TEAMS ===\n\n";
-        if (!teams) { cout << "No teams!\n"; pause(); return; }
+    void viewteams() {
+        cout<<"\n=== All Teams ===\n\n";
+        if(!tlist) { cout<<"No teams available!\n"; pause(); return; }
         
-        Team* t = teams;
-        int i = 1;
-        while (t) {
-            cout << i++ << ". " << t->name << " (Players: " << t->playerCount 
-                 << ", " << t->won << "W-" << t->lost << "L-" << t->tied << "T)\n";
-            if (t->players) {
-                cout << "   Squad: ";
-                Player* p = t->players;
-                while (p) { cout << p->name; if (p->next) cout << ", "; p = p->next; }
-                cout << "\n";
+        team *t = tlist;
+        int idx=1;
+        while(t) {
+            cout<<idx++<<". "<<t->name<<" (Players: "<<t->pcount<<", Record: "<<t->won<<"W-"<<t->lost<<"L-"<<t->tied<<"T)\n";
+            if(t->plist) {
+                cout<<"   Squad: ";
+                player *p = t->plist;
+                while(p) { cout<<p->name; if(p->next) cout<<", "; p=p->next; }
+                cout<<"\n";
             }
-            t = t->next;
+            t=t->next;
         }
         pause();
     }
     
-    void viewFixtures() {
-        cout << "\n=== ALL FIXTURES ===\n\n";
-        if (!matches) { cout << "No fixtures!\n"; pause(); return; }
+    void viewfixtures() {
+        cout<<"\n=== All Fixtures ===\n\n";
+        if(!mlist) { cout<<"No fixtures available!\n"; pause(); return; }
         
-        Match* m = matches;
-        int i = 1;
-        while (m) {
-            cout << i++ << ". " << m->team1 << " vs " << m->team2;
-            if (m->completed) {
-                cout << " - DONE (" << m->team1 << " " << m->score1 
-                     << "-" << m->score2 << " " << m->team2 << ")";
-                if (m->winner != "") cout << " Winner: " << m->winner;
-                else cout << " TIE";
-            } else cout << " - PENDING";
-            cout << "\n";
-            m = m->next;
+        match *m = mlist;
+        int idx=1;
+        
+        while(m) {
+            cout<<idx++<<". "<<m->team1<<" vs "<<m->team2;
+            if(m->done) {
+                cout<<" - Completed ("<<m->team1<<" "<<m->score1<<"-"<<m->score2<<" "<<m->team2<<")";
+                if(m->winner != "") cout<<" Winner: "<<m->winner;
+                else cout<<" Tie";
+            } else cout<<" - Pending";
+            cout<<"\n";
+            m=m->next;
         }
+        
         pause();
     }
     
-    void viewTopScorers() {
-        cout << "\n=== TOP SCORERS ===\n\n";
-        if (!teams) { cout << "No teams!\n"; pause(); return; }
+    void viewtopscorers() {
+        cout<<"\n=== Top Scorers ===\n\n";
+        if(!tlist) { cout<<"No teams available!\n"; pause(); return; }
         
-        Player* all = NULL;
-        Team* t = teams;
-        while (t) {
-            Player* p = t->players;
-            while (p) {
-                Player* copy = new Player(p->name);
+        player *all=NULL;
+        team *t = tlist;
+        
+        while(t) {
+            player *p = t->plist;
+            while(p) {
+                player *copy = new player(p->name);
                 copy->runs = p->runs;
                 copy->wickets = p->wickets;
                 copy->next = all;
                 all = copy;
-                p = p->next;
+                p=p->next;
             }
-            t = t->next;
+            t=t->next;
         }
         
-        if (!all) { cout << "No players!\n"; pause(); return; }
+        if(!all) { cout<<"No players available!\n"; pause(); return; }
         
-        all = Sorter::quickSort(all);
-        cout << "Rank Player              Runs Wickets\n";
-        cout << "--------------------------------------\n";
+        all = sorter::quicksort(all);
         
-        int rank = 1;
-        while (all) {
-            cout << rank++ << ".   " << all->name;
-            for (int i = all->name.length(); i < 20; i++) cout << " ";
-            cout << all->runs << "   " << all->wickets << "\n";
-            Player* del = all;
+        cout<<"Rank  Player               Runs  Wickets\n";
+        cout<<"------------------------------------------\n";
+        
+        int r=1;
+        while(all) {
+            cout<<r++<<".    "<<all->name;
+            for(int i=all->name.length(); i<20; i++) cout<<" ";
+            cout<<all->runs<<"    "<<all->wickets<<"\n";
+            player *del = all;
             all = all->next;
             delete del;
         }
@@ -388,85 +395,99 @@ public:
     }
     
     void undo() {
-        cout << "\n=== UNDO ===\n";
-        if (!undoStack) { cout << "Nothing to undo!\n"; pause(); return; }
+        cout<<"\n=== Undo Last Action ===\n";
+        if(!ustack) { cout<<"Nothing to undo!\n"; pause(); return; }
         
-        UndoAction* u = undoStack;
-        undoStack = undoStack->next;
-        cout << "Undoing: " << u->type << "\n";
+        undoaction *u = ustack;
+        ustack = ustack->next;
         
-        if (u->type == "TEAM") {
-            if (teams && !teams->next) { delete teams; teams = NULL; }
-            else if (teams) {
-                Team* t = teams;
-                while (t->next->next) t = t->next;
+        cout<<"Undoing: "<<u->type<<"\n";
+        
+        if(u->type == "team") {
+            if(tlist && !tlist->next) { delete tlist; tlist=NULL; }
+            else if(tlist) {
+                team *t = tlist;
+                while(t->next->next) t=t->next;
                 delete t->next;
-                t->next = NULL;
+                t->next=NULL;
             }
-            teamCount--;
-        } else if (u->type == "PLAYER") {
-            Team* t = findTeam(u->data1);
-            if (t) t->removeLastPlayer();
-        } else if (u->type == "FIXTURE") {
-            if (matches && !matches->next) { delete matches; matches = NULL; }
-            else if (matches) {
-                Match* m = matches;
-                while (m->next->next) m = m->next;
+            tcount--;
+        }
+        else if(u->type == "player") {
+            team *t = findteam(u->d1);
+            if(t) t->removelastplayer();
+        }
+        else if(u->type == "fixture") {
+            if(mlist && !mlist->next) { delete mlist; mlist=NULL; }
+            else if(mlist) {
+                match *m = mlist;
+                while(m->next->next) m=m->next;
                 delete m->next;
-                m->next = NULL;
+                m->next=NULL;
             }
-            matchCount--;
+            mcount--;
         }
         
         delete u;
-        cout << "? Undone!\n";
+        cout<<"Action undone successfully!\n";
         pause();
     }
     
     void menu() {
-        int choice;
+        int ch;
         do {
-            cout << "\n======================================\n";
-            cout << "  CRICKET TOURNAMENT MANAGEMENT\n";
-            cout << "======================================\n";
-            cout << "1. Create Team\n";
-            cout << "2. Add Player\n";
-            cout << "3. Add Fixture\n";
-            cout << "4. Enter Result\n";
-            cout << "5. Points Table\n";
-			cout << "6. View Teams\n";
-			cout << "7. View Fixtures\n";
-			cout << "8. Top Scorers\n";
-			cout << "9. Undo\n";
-			cout << "10. Exit\n";
-            cout << "Choice: ";
-            cin >> choice;
+            cout<<"\n========================================\n";
+            cout<<"    Cricket Tournament Management\n";
+            cout<<"========================================\n\n";
+            cout<<"1.Create Team\n";
+            cout<<"2.Add Player to Team\n";
+            cout<<"3.Add Fixture\n";
+            cout<<"4.Enter Match Result\n";
+            cout<<"5.View Points Table\n";
+            cout<<"6.View All Teams\n";
+            cout<<"7.View All Fixtures\n";
+            cout<<"8.View Top Scorers\n";
+            cout<<"9.Undo Last Action\n";
+            cout<<"10.Exit\n";
+            cout<<"\nEnter your choice: ";
+            cin>>ch;
             
-            switch (choice) {
-                case 1: createTeam(); break;
-                case 2: addPlayer(); break;
-                case 3: addFixture(); break;
-                case 4: enterResult(); break;
-                case 5: viewPoints(); break;
-                case 6: viewTeams(); break;
-                case 7: viewFixtures(); break;
-                case 8: viewTopScorers(); break;
+            switch(ch) {
+                case 1: createteam(); break;
+                case 2: addplayer(); break;
+                case 3: addfixture(); break;
+                case 4: enterresult(); break;
+                case 5: viewpoints(); break;
+                case 6: viewteams(); break;
+                case 7: viewfixtures(); break;
+                case 8: viewtopscorers(); break;
                 case 9: undo(); break;
-                case 10: cout << "\nGoodbye!\n"; break;
-                default: cout << "\nInvalid!\n"; pause();
+                case 10: cout<<"\nThank you for using the system!\n"; break;
+                default: cout<<"\nInvalid choice! Please try again.\n"; pause();
             }
-        } while (choice != 10);
+        } while(ch != 10);
     }
     
-    ~Tournament() {
-        while (teams) { Team* t = teams; teams = teams->next; delete t; }
-        while (matches) { Match* m = matches; matches = matches->next; delete m; }
-        while (undoStack) { UndoAction* u = undoStack; undoStack = undoStack->next; delete u; }
+    ~tournament() {
+        while(tlist) { 
+			team *t=tlist; 
+			tlist=tlist->next; 
+			delete t; }
+			
+        while(mlist) { 
+			match *m=mlist; 
+			mlist=mlist->next; 
+			delete m; }
+			
+        while(ustack) { 
+			undoaction *u=ustack; 
+			ustack=ustack->next; 
+			delete u; }
     }
 };
 
 int main() {
-    Tournament t;
+    tournament t;
     t.menu();
     return 0;
 }
