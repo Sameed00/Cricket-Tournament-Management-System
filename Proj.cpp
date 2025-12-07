@@ -1,686 +1,948 @@
 #include <iostream>
 #include <string>
-#include <time.h>
+#include <ctime>
+#include <cstdlib>
 using namespace std;
 
-// ====================== CRICKET CLASSES (Declared first) ======================
+// Forward declarations
+class Player;
+class Team;
+class Match;
 
+// ==================== PLAYER CLASS ====================
 class Player {
-private:
-    int id;
-    string name;
-    string type;
-    int runs;
-    int wickets;
 public:
-    Player(int i, string n, string t) : id(i), name(n), type(t), runs(0), wickets(0) {}
+    string name;
+    int runsScored;
+    int ballsFaced;
+    int wicketsTaken;
+    int oversBowled;
+    int runsConceded;
+    bool isOut;
+    Player* next;
     
-    void addStats(int r, int w) {
-        runs += r;
-        wickets += w;
-    }
-    
-    void display() {
-        cout << "[" << id << "] " << name << " (" << type << ") - " 
-             << runs << " runs, " << wickets << " wickets" << endl;
-    }
-    
-    int getRuns() { return runs; }
-    int getId() { return id; }
-    string getName() { return name; }
-    int getWickets() { return wickets; }
+    Player(string n = "") : name(n), runsScored(0), ballsFaced(0), 
+                            wicketsTaken(0), oversBowled(0), runsConceded(0), 
+                            isOut(false), next(NULL) {}
 };
 
+// ==================== LINKED LIST FOR PLAYERS ====================
+class PlayerList {
+private:
+    Player* head;
+    int count;
+    
+public:
+    PlayerList() : head(NULL), count(0) {}
+    
+    void addPlayer(string name) {
+        Player* newPlayer = new Player(name);
+        if (!head) {
+            head = newPlayer;
+        } else {
+            Player* temp = head;
+            while (temp->next) {
+                temp = temp->next;
+            }
+            temp->next = newPlayer;
+        }
+        count++;
+    }
+    
+    Player* getPlayer(int index) {
+        if (index < 0 || index >= count) return NULL;
+        Player* temp = head;
+        for (int i = 0; i < index; i++) {
+            temp = temp->next;
+        }
+        return temp;
+    }
+    
+    int getCount() { return count; }
+    
+    Player* getHead() { return head; }
+    
+    void display() {
+        Player* temp = head;
+        int i = 1;
+        while (temp) {
+            cout << i++ << ". " << temp->name << " (Runs: " << temp->runsScored 
+                 << ", Wickets: " << temp->wicketsTaken << ")\n";
+            temp = temp->next;
+        }
+    }
+    
+    void resetStats() {
+        Player* temp = head;
+        while (temp) {
+            temp->runsScored = 0;
+            temp->ballsFaced = 0;
+            temp->wicketsTaken = 0;
+            temp->oversBowled = 0;
+            temp->runsConceded = 0;
+            temp->isOut = false;
+            temp = temp->next;
+        }
+    }
+    
+    ~PlayerList() {
+        while (head) {
+            Player* temp = head;
+            head = head->next;
+            delete temp;
+        }
+    }
+};
+
+// ==================== TEAM CLASS ====================
 class Team {
-private:
-    int id;
+public:
     string name;
-    Player* players[15];
-    int playerCount;
+    PlayerList players;
+    int matchesPlayed;
+    int matchesWon;
+    int matchesLost;
     int points;
-    int wins;
-public:
-    Team(int i, string n) : id(i), name(n), playerCount(0), points(0), wins(0) {}
+    int totalRuns;
+    int totalWickets;
+    Team* next;
     
-    void addPlayer(Player* p) {
-        if (playerCount < 15) players[playerCount++] = p;
+    Team(string n = "") : name(n), matchesPlayed(0), matchesWon(0), 
+                          matchesLost(0), points(0), totalRuns(0), 
+                          totalWickets(0), next(NULL) {}
+    
+    void addWin() {
+        matchesWon++;
+        matchesPlayed++;
+        points += 2;
     }
     
-    void updatePoints(bool won) {
-        if (won) {
-            points += 2;
-            wins++;
-        }
+    void addLoss() {
+        matchesLost++;
+        matchesPlayed++;
     }
-    
-    void display() {
-        cout << "\nTeam " << id << ": " << name 
-             << " | Points: " << points << " | Wins: " << wins << endl;
-        for (int i = 0; i < playerCount; i++) {
-            cout << "  "; players[i]->display();
-        }
-    }
-    
-    int getPoints() { return points; }
-    string getName() { return name; }
-    int getId() { return id; }
-    int getPlayerCount() { return playerCount; }
-    Player* getPlayer(int i) { return (i < playerCount) ? players[i] : nullptr; }
 };
 
-class Match {
+// ==================== LINKED LIST FOR TEAMS ====================
+class TeamList {
 private:
-    int id;
-    Team* team1;
-    Team* team2;
-    string result;
-public:
-    Match(int i, Team* t1, Team* t2) : id(i), team1(t1), team2(t2), result("Pending") {}
-    
-    void simulate() {
-        int score1 = rand() % 200 + 100;
-        int score2 = rand() % 200 + 100;
-        
-        if (score1 > score2) {
-            result = team1->getName() + " won by " + to_string(score1 - score2) + " runs";
-            team1->updatePoints(true);
-        } else {
-            result = team2->getName() + " won by " + to_string(score2 - score1) + " runs";
-            team2->updatePoints(true);
-        }
-    }
-    
-    void display() {
-        cout << "Match " << id << ": " << team1->getName() << " vs " << team2->getName() 
-             << " - " << result << endl;
-    }
-};
-
-// ====================== SIMPLIFIED DATA STRUCTURES ======================
-
-template <typename T>
-class Node {
-public:
-    T data;
-    Node* next;
-    Node(T val) : data(val), next(nullptr) {}
-};
-
-template <typename T>
-class List {
-private:
-    Node<T>* head;
-public:
-    List() : head(nullptr) {}
-    
-    void add(T val) {
-        Node<T>* newNode = new Node<T>(val);
-        if (!head) head = newNode;
-        else {
-            Node<T>* temp = head;
-            while (temp->next) temp = temp->next;
-            temp->next = newNode;
-        }
-    }
-    
-    Node<T>* getHead() { return head; }
-    
-    void display() {
-        Node<T>* curr = head;
-        while (curr) {
-            cout << curr->data << " ";
-            curr = curr->next;
-        }
-        cout << endl;
-    }
-};
-
-class Stack {
-private:
-    string* arr;
-    int top;
-    int capacity;
-public:
-    Stack(int size = 100) : top(-1), capacity(size) {
-        arr = new string[size];
-    }
-    
-    ~Stack() {
-        delete[] arr;
-    }
-    
-    void push(string action) {
-        if (top < capacity - 1) arr[++top] = action;
-    }
-    
-    string pop() {
-        if (top >= 0) return arr[top--];
-        return "";
-    }
-};
-
-class Queue {
-private:
-    string* arr;
-    int front, rear, size, capacity;
-public:
-    Queue(int size = 100) : front(0), rear(-1), size(0), capacity(size) {
-        arr = new string[size];
-    }
-    
-    ~Queue() {
-        delete[] arr;
-    }
-    
-    void enqueue(string match) {
-        if (size < capacity) {
-            rear = (rear + 1) % capacity;
-            arr[rear] = match;
-            size++;
-        }
-    }
-    
-    string dequeue() {
-        if (size > 0) {
-            string match = arr[front];
-            front = (front + 1) % capacity;
-            size--;
-            return match;
-        }
-        return "";
-    }
-};
-
-// ====================== ADVANCED SORTING ALGORITHMS ======================
-
-// Merge Sort for Players by Runs
-void mergePlayersByRuns(Player* arr[], int left, int mid, int right) {
-    int n1 = mid - left + 1;
-    int n2 = right - mid;
-    
-    Player** L = new Player*[n1];
-    Player** R = new Player*[n2];
-    
-    for (int i = 0; i < n1; i++) L[i] = arr[left + i];
-    for (int j = 0; j < n2; j++) R[j] = arr[mid + 1 + j];
-    
-    int i = 0, j = 0, k = left;
-    while (i < n1 && j < n2) {
-        if (L[i]->getRuns() >= R[j]->getRuns()) {
-            arr[k] = L[i];
-            i++;
-        } else {
-            arr[k] = R[j];
-            j++;
-        }
-        k++;
-    }
-    
-    while (i < n1) arr[k++] = L[i++];
-    while (j < n2) arr[k++] = R[j++];
-    
-    delete[] L;
-    delete[] R;
-}
-
-void mergeSortPlayersByRuns(Player* arr[], int left, int right) {
-    if (left < right) {
-        int mid = left + (right - left) / 2;
-        mergeSortPlayersByRuns(arr, left, mid);
-        mergeSortPlayersByRuns(arr, mid + 1, right);
-        mergePlayersByRuns(arr, left, mid, right);
-    }
-}
-
-// Merge Sort for Teams by Points
-void mergeTeamsByPoints(Team* arr[], int left, int mid, int right) {
-    int n1 = mid - left + 1;
-    int n2 = right - mid;
-    
-    Team** L = new Team*[n1];
-    Team** R = new Team*[n2];
-    
-    for (int i = 0; i < n1; i++) L[i] = arr[left + i];
-    for (int j = 0; j < n2; j++) R[j] = arr[mid + 1 + j];
-    
-    int i = 0, j = 0, k = left;
-    while (i < n1 && j < n2) {
-        if (L[i]->getPoints() >= R[j]->getPoints()) {
-            arr[k] = L[i];
-            i++;
-        } else {
-            arr[k] = R[j];
-            j++;
-        }
-        k++;
-    }
-    
-    while (i < n1) arr[k++] = L[i++];
-    while (j < n2) arr[k++] = R[j++];
-    
-    delete[] L;
-    delete[] R;
-}
-
-void mergeSortTeamsByPoints(Team* arr[], int left, int right) {
-    if (left < right) {
-        int mid = left + (right - left) / 2;
-        mergeSortTeamsByPoints(arr, left, mid);
-        mergeSortTeamsByPoints(arr, mid + 1, right);
-        mergeTeamsByPoints(arr, left, mid, right);
-    }
-}
-
-
-int partition(Team* arr[], int low, int high) {
-    string pivot = arr[high]->getName();
-    int i = low - 1;
-    
-    for (int j = low; j < high; j++) {
-        if (arr[j]->getName() <= pivot) {
-            i++;
-            swap(arr[i], arr[j]);
-        }
-    }
-    swap(arr[i + 1], arr[high]);
-    return i + 1;
-}
-
-void quickSortTeamsByName(Team* arr[], int low, int high) {
-    if (low < high) {
-        int pi = partition(arr, low, high);
-        quickSortTeamsByName(arr, low, pi - 1);
-        quickSortTeamsByName(arr, pi + 1, high);
-    }
-}
-
-
-Player* binarySearchPlayers(Player* arr[], int left, int right, int id) {
-    while (left <= right) {
-        int mid = left + (right - left) / 2;
-        if (arr[mid]->getId() == id) return arr[mid];
-        if (arr[mid]->getId() < id) left = mid + 1;
-        else right = mid - 1;
-    }
-    return nullptr;
-}
-
-// ====================== TOURNAMENT SYSTEM ======================
-
-class CricketTournament {
-private:
-    Team* teams[20];
-    Player* players[100];
-    int teamCount;
-    int playerCount;
-    int matchCount;
-    Stack undoStack;
-    Queue matchQueue;
-    
-    
-    void sortPlayersById(Player* arr[], int n) {
-        for (int i = 1; i < n; i++) {
-            Player* key = arr[i];
-            int j = i - 1;
-            while (j >= 0 && arr[j]->getId() > key->getId()) {
-                arr[j + 1] = arr[j];
-                j--;
-            }
-            arr[j + 1] = key;
-        }
-    }
-    
-    
-    void displayBracket(int level, int matchNo) {
-        if (level == 0) return;
-        
-        string spaces(level * 2, ' ');
-        cout << spaces << "Match " << matchNo << " (Round " << level << ")" << endl;
-        
-        displayBracket(level - 1, matchNo * 2);
-        displayBracket(level - 1, matchNo * 2 + 1);
-    }
-    
-    
-    void generateFixtures(int round, int n, string current[], int& count) {
-        if (round >= n * (n - 1) / 2) return;
-        
-        for (int i = 0; i < n; i++) {
-            for (int j = i + 1; j < n; j++) {
-                current[count++] = "Match " + to_string(count + 1) + ": " + 
-                                  teams[i]->getName() + " vs " + teams[j]->getName();
-                round++;
-                if (round >= 5) return; // Limit to 5 fixtures for simplicity
-            }
-        }
-    }
+    Team* head;
+    int count;
     
 public:
-    CricketTournament() : teamCount(0), playerCount(0), matchCount(0) {}
-    
-    ~CricketTournament() {
-        
-        for (int i = 0; i < playerCount; i++) delete players[i];
-        for (int i = 0; i < teamCount; i++) delete teams[i];
-    }
+    TeamList() : head(NULL), count(0) {}
     
     void addTeam(string name) {
-        teams[teamCount++] = new Team(teamCount, name);
-        undoStack.push("Added team: " + name);
-        cout << "Team '" << name << "' added with ID: " << teamCount << endl;
+        Team* newTeam = new Team(name);
+        if (!head) {
+            head = newTeam;
+        } else {
+            Team* temp = head;
+            while (temp->next) {
+                temp = temp->next;
+            }
+            temp->next = newTeam;
+        }
+        count++;
     }
     
-    void addPlayer(string name, string type, int teamId) {
-        if (teamId > 0 && teamId <= teamCount) {
-            players[playerCount] = new Player(playerCount + 1, name, type);
-            teams[teamId - 1]->addPlayer(players[playerCount]);
-            
-            
-            players[playerCount]->addStats(rand() % 500, rand() % 20);
-            
-            playerCount++;
-            undoStack.push("Added player: " + name);
-            cout << "Player '" << name << "' added to team " << teamId << endl;
-        } else {
-            cout << "Invalid team ID!" << endl;
+    Team* getTeam(int index) {
+        if (index < 0 || index >= count) return NULL;
+        Team* temp = head;
+        for (int i = 0; i < index; i++) {
+            temp = temp->next;
+        }
+        return temp;
+    }
+    
+    Team* findTeam(string name) {
+        Team* temp = head;
+        while (temp) {
+            if (temp->name == name) return temp;
+            temp = temp->next;
+        }
+        return NULL;
+    }
+    
+    int getCount() { return count; }
+    
+    Team* getHead() { return head; }
+    
+    void display() {
+        Team* temp = head;
+        int i = 1;
+        while (temp) {
+            cout << i++ << ". " << temp->name << " (Players: " 
+                 << temp->players.getCount() << ")\n";
+            temp = temp->next;
         }
     }
     
-    void scheduleMatch(int team1Id, int team2Id) {
-        if (team1Id > 0 && team2Id > 0 && team1Id <= teamCount && team2Id <= teamCount && team1Id != team2Id) {
-            string matchDesc = "Match " + to_string(matchCount + 1) + ": " + 
-                              teams[team1Id - 1]->getName() + " vs " + teams[team2Id - 1]->getName();
-            matchQueue.enqueue(matchDesc);
-            matchCount++;
-            cout << "Scheduled: " << matchDesc << endl;
-        } else {
-            cout << "Invalid teams or same team selected!" << endl;
+    ~TeamList() {
+        while (head) {
+            Team* temp = head;
+            head = head->next;
+            delete temp;
         }
+    }
+};
+
+// ==================== STACK FOR UNDO OPERATIONS ====================
+struct UndoAction {
+    string actionType;
+    string data1;
+    string data2;
+    int intData;
+    UndoAction* next;
+    
+    UndoAction(string type, string d1 = "", string d2 = "", int iData = 0) 
+        : actionType(type), data1(d1), data2(d2), intData(iData), next(NULL) {}
+};
+
+class UndoStack {
+private:
+    UndoAction* top;
+    int count;
+    
+public:
+    UndoStack() : top(NULL), count(0) {}
+    
+    void push(string actionType, string data1 = "", string data2 = "", int intData = 0) {
+        UndoAction* newAction = new UndoAction(actionType, data1, data2, intData);
+        newAction->next = top;
+        top = newAction;
+        count++;
+    }
+    
+    UndoAction* pop() {
+        if (!top) return NULL;
+        UndoAction* temp = top;
+        top = top->next;
+        count--;
+        return temp;
+    }
+    
+    bool isEmpty() { return top == NULL; }
+    
+    int getCount() { return count; }
+    
+    ~UndoStack() {
+        while (top) {
+            UndoAction* temp = top;
+            top = top->next;
+            delete temp;
+        }
+    }
+};
+
+// ==================== MATCH CLASS ====================
+class Match {
+public:
+    Team* team1;
+    Team* team2;
+    int overs;
+    Team* winner;
+    int team1Score;
+    int team2Score;
+    int team1Wickets;
+    int team2Wickets;
+    bool completed;
+    Match* next;
+    
+    Match() : team1(NULL), team2(NULL), overs(0), winner(NULL), 
+              team1Score(0), team2Score(0), team1Wickets(0), 
+              team2Wickets(0), completed(false), next(NULL) {}
+};
+
+// ==================== QUEUE FOR MATCH SCHEDULING ====================
+class MatchQueue {
+private:
+    Match* front;
+    Match* rear;
+    int count;
+    
+public:
+    MatchQueue() : front(NULL), rear(NULL), count(0) {}
+    
+    void enqueue(Team* t1, Team* t2, int overs) {
+        Match* newMatch = new Match();
+        newMatch->team1 = t1;
+        newMatch->team2 = t2;
+        newMatch->overs = overs;
+        
+        if (!rear) {
+            front = rear = newMatch;
+        } else {
+            rear->next = newMatch;
+            rear = newMatch;
+        }
+        count++;
+    }
+    
+    Match* dequeue() {
+        if (!front) return NULL;
+        Match* temp = front;
+        front = front->next;
+        if (!front) rear = NULL;
+        count--;
+        return temp;
+    }
+    
+    bool isEmpty() { return front == NULL; }
+    
+    int getCount() { return count; }
+    
+    Match* getFront() { return front; }
+    
+    void display() {
+        Match* temp = front;
+        int i = 1;
+        while (temp) {
+            cout << i++ << ". " << temp->team1->name << " vs " 
+                 << temp->team2->name << " (" << temp->overs << " overs)";
+            if (temp->completed) {
+                cout << " - COMPLETED (Winner: " << temp->winner->name << ")";
+            }
+            cout << "\n";
+            temp = temp->next;
+        }
+    }
+    
+    ~MatchQueue() {
+        while (front) {
+            Match* temp = front;
+            front = front->next;
+            delete temp;
+        }
+    }
+};
+
+// ==================== SORTING FUNCTIONS ====================
+// Merge Sort for Teams by Points
+Team* mergeSortedTeams(Team* left, Team* right) {
+    if (!left) return right;
+    if (!right) return left;
+    
+    Team* result = NULL;
+    
+    if (left->points >= right->points) {
+        result = left;
+        result->next = mergeSortedTeams(left->next, right);
+    } else {
+        result = right;
+        result->next = mergeSortedTeams(left, right->next);
+    }
+    
+    return result;
+}
+
+void splitList(Team* head, Team** left, Team** right) {
+    Team* slow = head;
+    Team* fast = head->next;
+    
+    while (fast) {
+        fast = fast->next;
+        if (fast) {
+            slow = slow->next;
+            fast = fast->next;
+        }
+    }
+    
+    *left = head;
+    *right = slow->next;
+    slow->next = NULL;
+}
+
+Team* mergeSort(Team* head) {
+    if (!head || !head->next) return head;
+    
+    Team* left = NULL;
+    Team* right = NULL;
+    
+    splitList(head, &left, &right);
+    
+    left = mergeSort(left);
+    right = mergeSort(right);
+    
+    return mergeSortedTeams(left, right);
+}
+
+// Quick Sort for Players by Runs
+Player* getLastPlayer(Player* head) {
+    while (head && head->next) {
+        head = head->next;
+    }
+    return head;
+}
+
+Player* partitionPlayers(Player* head, Player* end, Player** newHead, Player** newEnd) {
+    Player* pivot = end;
+    Player *prev = NULL, *cur = head, *tail = pivot;
+    
+    while (cur != pivot) {
+        if (cur->runsScored > pivot->runsScored) {
+            if (*newHead == NULL) *newHead = cur;
+            prev = cur;
+            cur = cur->next;
+        } else {
+            if (prev) prev->next = cur->next;
+            Player* temp = cur->next;
+            cur->next = NULL;
+            tail->next = cur;
+            tail = cur;
+            cur = temp;
+        }
+    }
+    
+    if (*newHead == NULL) *newHead = pivot;
+    *newEnd = tail;
+    
+    return pivot;
+}
+
+Player* quickSortRecur(Player* head, Player* end) {
+    if (!head || head == end) return head;
+    
+    Player *newHead = NULL, *newEnd = NULL;
+    Player* pivot = partitionPlayers(head, end, &newHead, &newEnd);
+    
+    if (newHead != pivot) {
+        Player* temp = newHead;
+        while (temp->next != pivot) {
+            temp = temp->next;
+        }
+        temp->next = NULL;
+        
+        newHead = quickSortRecur(newHead, temp);
+        
+        temp = getLastPlayer(newHead);
+        temp->next = pivot;
+    }
+    
+    pivot->next = quickSortRecur(pivot->next, newEnd);
+    
+    return newHead;
+}
+
+Player* quickSort(Player* head) {
+    return quickSortRecur(head, getLastPlayer(head));
+}
+
+// ==================== MAIN SYSTEM CLASS ====================
+class CricketTournament {
+private:
+    TeamList teams;
+    MatchQueue matches;
+    UndoStack undoStack;
+    
+    void clearScreen() {
+        #ifdef _WIN32
+            system("cls");
+        #else
+            system("clear");
+        #endif
+    }
+    
+    void pause() {
+        cout << "\nPress Enter to continue...";
+        cin.ignore();
+        cin.get();
+    }
+    
+    int simulateBall() {
+        int outcome = rand() % 10;
+        if (outcome == 0) return -1; // Wicket
+        if (outcome <= 3) return 0;  // Dot ball
+        if (outcome <= 6) return 1;  // 1 run
+        if (outcome <= 8) return 2;  // 2 runs
+        if (outcome == 9) return rand() % 2 == 0 ? 4 : 6; // Boundary
+        return 0;
+    }
+    
+public:
+    CricketTournament() {
+        srand(time(0));
+    }
+    
+    void createTeam() {
+        clearScreen();
+        cout << "=== CREATE NEW TEAM ===\n\n";
+        string teamName;
+        cout << "Enter team name: ";
+        cin.ignore();
+        getline(cin, teamName);
+        
+        teams.addTeam(teamName);
+        undoStack.push("CREATE_TEAM", teamName);
+        
+        cout << "\nTeam '" << teamName << "' created successfully!\n";
+        pause();
+    }
+    
+    void addPlayerToTeam() {
+        clearScreen();
+        cout << "=== ADD PLAYER TO TEAM ===\n\n";
+        
+        if (teams.getCount() == 0) {
+            cout << "No teams available. Create a team first.\n";
+            pause();
+            return;
+        }
+        
+        cout << "Select a team:\n";
+        teams.display();
+        
+        int teamChoice;
+        cout << "\nEnter team number: ";
+        cin >> teamChoice;
+        
+        Team* selectedTeam = teams.getTeam(teamChoice - 1);
+        if (!selectedTeam) {
+            cout << "Invalid team selection!\n";
+            pause();
+            return;
+        }
+        
+        string playerName;
+        cout << "Enter player name: ";
+        cin.ignore();
+        getline(cin, playerName);
+        
+        selectedTeam->players.addPlayer(playerName);
+        undoStack.push("ADD_PLAYER", selectedTeam->name, playerName);
+        
+        cout << "\nPlayer '" << playerName << "' added to " << selectedTeam->name << "!\n";
+        pause();
+    }
+    
+    void scheduleMatch() {
+        clearScreen();
+        cout << "=== SCHEDULE MATCH ===\n\n";
+        
+        if (teams.getCount() < 2) {
+            cout << "At least 2 teams required to schedule a match.\n";
+            pause();
+            return;
+        }
+        
+        cout << "Select Team 1:\n";
+        teams.display();
+        int team1Choice;
+        cout << "\nEnter team number: ";
+        cin >> team1Choice;
+        
+        Team* team1 = teams.getTeam(team1Choice - 1);
+        if (!team1) {
+            cout << "Invalid team selection!\n";
+            pause();
+            return;
+        }
+        
+        cout << "\nSelect Team 2:\n";
+        teams.display();
+        int team2Choice;
+        cout << "\nEnter team number: ";
+        cin >> team2Choice;
+        
+        Team* team2 = teams.getTeam(team2Choice - 1);
+        if (!team2 || team1 == team2) {
+            cout << "Invalid team selection!\n";
+            pause();
+            return;
+        }
+        
+        if (team1->players.getCount() < 2 || team2->players.getCount() < 2) {
+            cout << "Each team must have at least 2 players!\n";
+            pause();
+            return;
+        }
+        
+        int overs;
+        cout << "\nEnter number of overs (5-50): ";
+        cin >> overs;
+        
+        if (overs < 5 || overs > 50) {
+            cout << "Invalid number of overs!\n";
+            pause();
+            return;
+        }
+        
+        matches.enqueue(team1, team2, overs);
+        undoStack.push("SCHEDULE_MATCH", team1->name, team2->name, overs);
+        
+        cout << "\nMatch scheduled: " << team1->name << " vs " << team2->name << "\n";
+        pause();
     }
     
     void playMatch() {
-        string next = matchQueue.dequeue();
-        if (!next.empty()) {
-            cout << "\nPlaying: " << next << endl;
+        clearScreen();
+        cout << "=== PLAY MATCH ===\n\n";
+        
+        if (matches.isEmpty()) {
+            cout << "No matches scheduled!\n";
+            pause();
+            return;
+        }
+        
+        Match* match = matches.dequeue();
+        
+        cout << "Match: " << match->team1->name << " vs " << match->team2->name << "\n";
+        cout << "Overs: " << match->overs << "\n\n";
+        
+        // Reset player stats
+        match->team1->players.resetStats();
+        match->team2->players.resetStats();
+        
+        // Toss
+        cout << "=== TOSS ===\n";
+        cout << "1. " << match->team1->name << "\n";
+        cout << "2. " << match->team2->name << "\n";
+        cout << "Who won the toss? ";
+        int tossWinner;
+        cin >> tossWinner;
+        
+        cout << "Choose:\n1. Bat\n2. Bowl\nChoice: ";
+        int tossChoice;
+        cin >> tossChoice;
+        
+        Team* battingFirst = (tossWinner == 1 && tossChoice == 1) || 
+                             (tossWinner == 2 && tossChoice == 2) ? 
+                             match->team1 : match->team2;
+        Team* bowlingFirst = (battingFirst == match->team1) ? match->team2 : match->team1;
+        
+        cout << "\n" << battingFirst->name << " will bat first!\n";
+        pause();
+        
+        // First Innings
+        clearScreen();
+        cout << "=== FIRST INNINGS ===\n";
+        cout << battingFirst->name << " batting\n\n";
+        
+        int innings1Score = playInnings(battingFirst, bowlingFirst, match->overs);
+        match->team1Score = (battingFirst == match->team1) ? innings1Score : 0;
+        match->team2Score = (battingFirst == match->team2) ? innings1Score : 0;
+        
+        cout << "\n" << battingFirst->name << " scored " << innings1Score << " runs\n";
+        cout << "\nTarget: " << innings1Score + 1 << " runs\n";
+        pause();
+        
+        // Second Innings
+        clearScreen();
+        cout << "=== SECOND INNINGS ===\n";
+        cout << bowlingFirst->name << " batting (Target: " << innings1Score + 1 << ")\n\n";
+        
+        int innings2Score = playInnings(bowlingFirst, battingFirst, match->overs, innings1Score + 1);
+        
+        if (battingFirst == match->team1) {
+            match->team2Score = innings2Score;
+        } else {
+            match->team1Score = innings2Score;
+        }
+        
+        cout << "\n" << bowlingFirst->name << " scored " << innings2Score << " runs\n";
+        
+        // Determine winner
+        if (innings2Score > innings1Score) {
+            match->winner = bowlingFirst;
+            bowlingFirst->addWin();
+            battingFirst->addLoss();
+            cout << "\n" << bowlingFirst->name << " wins!\n";
+        } else if (innings2Score < innings1Score) {
+            match->winner = battingFirst;
+            battingFirst->addWin();
+            bowlingFirst->addLoss();
+            cout << "\n" << battingFirst->name << " wins!\n";
+        } else {
+            cout << "\nMatch Tied!\n";
+            match->winner = NULL;
+        }
+        
+        match->completed = true;
+        pause();
+    }
+    
+    int playInnings(Team* batting, Team* bowling, int totalOvers, int target = -1) {
+        int score = 0;
+        int wickets = 0;
+        int ballsPlayed = 0;
+        int maxBalls = totalOvers * 6;
+        
+        cout << "Select batsman 1 from " << batting->name << ":\n";
+        batting->players.display();
+        int bat1Choice;
+        cout << "Enter number: ";
+        cin >> bat1Choice;
+        Player* batsman1 = batting->players.getPlayer(bat1Choice - 1);
+        
+        cout << "\nSelect batsman 2:\n";
+        batting->players.display();
+        int bat2Choice;
+        cout << "Enter number: ";
+        cin >> bat2Choice;
+        Player* batsman2 = batting->players.getPlayer(bat2Choice - 1);
+        
+        if (!batsman1 || !batsman2 || batsman1 == batsman2) {
+            cout << "Invalid batsman selection!\n";
+            return 0;
+        }
+        
+        cout << "\nSelect opening bowler from " << bowling->name << ":\n";
+        bowling->players.display();
+        int bowlChoice;
+        cout << "Enter number: ";
+        cin >> bowlChoice;
+        Player* bowler = bowling->players.getPlayer(bowlChoice - 1);
+        
+        if (!bowler) {
+            cout << "Invalid bowler selection!\n";
+            return 0;
+        }
+        
+        Player* onStrike = batsman1;
+        Player* offStrike = batsman2;
+        
+        pause();
+        
+        for (int over = 0; over < totalOvers && wickets < 2; over++) {
+            clearScreen();
+            cout << "\n=== OVER " << (over + 1) << " ===\n";
+            cout << "Score: " << score << "/" << wickets;
+            if (target > 0) cout << " (Need " << (target - score) << " runs)";
+            cout << "\n";
+            cout << "Batsmen: " << onStrike->name << "* (" << onStrike->runsScored 
+                 << " off " << onStrike->ballsFaced << "), ";
+            cout << offStrike->name << " (" << offStrike->runsScored 
+                 << " off " << offStrike->ballsFaced << ")\n";
+            cout << "Bowler: " << bowler->name << "\n\n";
             
-            int winner = rand() % 2;
-            if (winner == 0) {
-                cout << teams[0]->getName() << " wins!" << endl;
-                teams[0]->updatePoints(true);
-            } else {
-                cout << teams[1]->getName() << " wins!" << endl;
-                teams[1]->updatePoints(true);
+            for (int ball = 0; ball < 6 && wickets < 2; ball++) {
+                cout << "Ball " << (ball + 1) << ": ";
+                
+                int outcome = simulateBall();
+                
+                if (outcome == -1) {
+                    cout << "WICKET!\n";
+                    onStrike->isOut = true;
+                    wickets++;
+                    bowler->wicketsTaken++;
+                    
+                    if (wickets < 2) {
+                        cout << "\nNew batsman needed. Select:\n";
+                        Player* temp = batting->players.getHead();
+                        int num = 1;
+                        while (temp) {
+                            if (!temp->isOut && temp != offStrike) {
+                                cout << num << ". " << temp->name << "\n";
+                            }
+                            num++;
+                            temp = temp->next;
+                        }
+                        
+                        int newBatChoice;
+                        cout << "Enter number: ";
+                        cin >> newBatChoice;
+                        onStrike = batting->players.getPlayer(newBatChoice - 1);
+                    }
+                } else {
+                    onStrike->runsScored += outcome;
+                    onStrike->ballsFaced++;
+                    score += outcome;
+                    bowler->runsConceded += outcome;
+                    ballsPlayed++;
+                    
+                    if (outcome == 0) cout << "Dot ball\n";
+                    else cout << outcome << " run(s)\n";
+                    
+                    if (outcome % 2 == 1) {
+                        Player* temp = onStrike;
+                        onStrike = offStrike;
+                        offStrike = temp;
+                    }
+                }
+                
+                if (target > 0 && score >= target) {
+                    cout << "\nTarget achieved!\n";
+                    return score;
+                }
             }
-            undoStack.push("Played: " + next);
-        } else {
-            cout << "No matches scheduled!" << endl;
-        }
-    }
-    
-    void undo() {
-        string last = undoStack.pop();
-        if (!last.empty()) {
-            cout << "Undid: " << last << endl;
-        } else {
-            cout << "Nothing to undo!" << endl;
-        }
-    }
-    
-    void showPointsTable() {
-        cout << "\n=== POINTS TABLE (Sorted by Merge Sort) ===" << endl;
-        if (teamCount == 0) {
-            cout << "No teams available!" << endl;
-            return;
-        }
-        
-        Team* sortedTeams[20];
-        for (int i = 0; i < teamCount; i++) sortedTeams[i] = teams[i];
-        
-        mergeSortTeamsByPoints(sortedTeams, 0, teamCount - 1);
-        
-        cout << "Pos | Team | Points | Wins" << endl;
-        cout << "----------------------------" << endl;
-        for (int i = 0; i < teamCount; i++) {
-            cout << i + 1 << ".  " << sortedTeams[i]->getName() 
-                 << " - " << sortedTeams[i]->getPoints() 
-                 << " points (" << sortedTeams[i]->getId() << " wins)" << endl;
-        }
-    }
-    
-    void showTopPlayers() {
-        cout << "\n=== TOP PLAYERS (Sorted by Merge Sort) ===" << endl;
-        if (playerCount == 0) {
-            cout << "No players available!" << endl;
-            return;
-        }
-        
-        Player* allPlayers[100];
-        int total = 0;
-        
-        for (int i = 0; i < teamCount; i++) {
-            for (int j = 0; j < teams[i]->getPlayerCount(); j++) {
-                allPlayers[total++] = teams[i]->getPlayer(j);
+            
+            bowler->oversBowled++;
+            
+            // Swap strike
+            Player* temp = onStrike;
+            onStrike = offStrike;
+            offStrike = temp;
+            
+            if (over < totalOvers - 1 && wickets < 2) {
+                cout << "\nSelect next bowler:\n";
+                bowling->players.display();
+                cout << "Enter number: ";
+                cin >> bowlChoice;
+                bowler = bowling->players.getPlayer(bowlChoice - 1);
             }
+            
+            pause();
         }
         
-        if (total == 0) {
-            cout << "No players to display!" << endl;
+        return score;
+    }
+    
+    void viewPointsTable() {
+        clearScreen();
+        cout << "=== POINTS TABLE ===\n\n";
+        
+        if (teams.getCount() == 0) {
+            cout << "No teams available.\n";
+            pause();
             return;
         }
         
-        mergeSortPlayersByRuns(allPlayers, 0, total - 1);
+        // Sort teams by points using merge sort
+        Team* sortedHead = mergeSort(teams.getHead());
         
-        int limit = (total < 5) ? total : 5;
-        for (int i = 0; i < limit; i++) {
-            cout << i + 1 << ". "; allPlayers[i]->display();
+        cout << "Pos  Team                 P   W   L   Pts\n";
+        cout << "-------------------------------------------\n";
+        
+        int pos = 1;
+        Team* temp = sortedHead;
+        while (temp) {
+            cout << pos++ << ".   ";
+            cout << temp->name;
+            for (int i = temp->name.length(); i < 20; i++) cout << " ";
+            cout << temp->matchesPlayed << "   ";
+            cout << temp->matchesWon << "   ";
+            cout << temp->matchesLost << "   ";
+            cout << temp->points << "\n";
+            temp = temp->next;
         }
+        
+        pause();
     }
     
-    void searchPlayer() {
-        int id;
-        cout << "Enter player ID to search: ";
-        cin >> id;
+    void viewLeaderboard() {
+        clearScreen();
+        cout << "=== LEADERBOARD ===\n\n";
         
-        Player* allPlayers[100];
-        int total = 0;
+        if (teams.getCount() == 0) {
+            cout << "No teams available.\n";
+            pause();
+            return;
+        }
         
-        for (int i = 0; i < teamCount; i++) {
-            for (int j = 0; j < teams[i]->getPlayerCount(); j++) {
-                allPlayers[total++] = teams[i]->getPlayer(j);
+        // Collect all players
+        Player* allPlayers = NULL;
+        Team* tempTeam = teams.getHead();
+        
+        while (tempTeam) {
+            Player* tempPlayer = tempTeam->players.getHead();
+            while (tempPlayer) {
+                Player* copy = new Player(tempPlayer->name);
+                copy->runsScored = tempPlayer->runsScored;
+                copy->wicketsTaken = tempPlayer->wicketsTaken;
+                copy->next = allPlayers;
+                allPlayers = copy;
+                tempPlayer = tempPlayer->next;
             }
+            tempTeam = tempTeam->next;
         }
         
-        if (total == 0) {
-            cout << "No players available!" << endl;
+        // Sort by runs using quick sort
+        allPlayers = quickSort(allPlayers);
+        
+        cout << "TOP RUN SCORERS:\n";
+        cout << "Rank  Player               Runs\n";
+        cout << "--------------------------------\n";
+        
+        int rank = 1;
+        Player* temp = allPlayers;
+        while (temp && rank <= 10) {
+            cout << rank++ << ".    ";
+            cout << temp->name;
+            for (int i = temp->name.length(); i < 20; i++) cout << " ";
+            cout << temp->runsScored << "\n";
+            temp = temp->next;
+        }
+        
+        // Clean up
+        while (allPlayers) {
+            Player* del = allPlayers;
+            allPlayers = allPlayers->next;
+            delete del;
+        }
+        
+        pause();
+    }
+    
+    void undoLastAction() {
+        clearScreen();
+        cout << "=== UNDO LAST ACTION ===\n\n";
+        
+        if (undoStack.isEmpty()) {
+            cout << "No actions to undo.\n";
+            pause();
             return;
         }
         
+        UndoAction* action = undoStack.pop();
         
-        sortPlayersById(allPlayers, total);
+        cout << "Undoing: " << action->actionType << "\n";
+        cout << "Note: This is a simplified undo. Some complex operations may not be fully reversible.\n";
         
-        Player* found = binarySearchPlayers(allPlayers, 0, total - 1, id);
-        if (found) {
-            cout << "\nPlayer found (using Binary Search):" << endl;
-            found->display();
-        } else {
-            cout << "Player not found!" << endl;
-        }
+        delete action;
+        pause();
     }
     
-    void searchTeam() {
-        string name;
-        cout << "Enter team name to search: ";
-        cin.ignore();
-        getline(cin, name);
+    void mainMenu() {
+        int choice;
         
-        
-        for (int i = 0; i < teamCount; i++) {
-            if (teams[i]->getName() == name) {
-                cout << "\nTeam found:" << endl;
-                teams[i]->display();
-                return;
+        do {
+            clearScreen();
+            cout << "====================================\n";
+            cout << "   CRICKET TOURNAMENT MANAGEMENT\n";
+            cout << "====================================\n\n";
+            cout << "1.  Create Team\n";
+            cout << "2.  Add Player to Team\n";
+            cout << "3.  Schedule Match\n";
+            cout << "4.  Play Match\n";
+            cout << "5.  View Scheduled Matches\n";
+            cout << "6.  View Points Table\n";
+            cout << "7.  View Leaderboard\n";
+            cout << "8.  View All Teams\n";
+            cout << "9.  Undo Last Action\n";
+            cout << "10. Exit\n";
+            cout << "\nEnter choice: ";
+            cin >> choice;
+            
+            switch (choice) {
+                case 1: createTeam(); break;
+                case 2: addPlayerToTeam(); break;
+                case 3: scheduleMatch(); break;
+                case 4: playMatch(); break;
+                case 5: 
+                    clearScreen();
+                    cout << "=== SCHEDULED MATCHES ===\n\n";
+                    matches.display();
+                    pause();
+                    break;
+                case 6: viewPointsTable(); break;
+                case 7: viewLeaderboard(); break;
+                case 8:
+                    clearScreen();
+                    cout << "=== ALL TEAMS ===\n\n";
+                    teams.display();
+                    pause();
+                    break;
+                case 9: undoLastAction(); break;
+                case 10: cout << "\nThank you for using the system!\n"; break;
+                default: cout << "\nInvalid choice!\n"; pause();
             }
-        }
-        cout << "Team not found!" << endl;
-    }
-    
-    void showTournamentTree() {
-        cout << "\n=== TOURNAMENT BRACKET (Recursive Display) ===" << endl;
-        displayBracket(4, 1);
-    }
-    
-    void generateAllFixtures() {
-        cout << "\n=== FIXTURES (Backtracking Algorithm) ===" << endl;
-        if (teamCount < 2) {
-            cout << "Need at least 2 teams!" << endl;
-            return;
-        }
-        
-        string fixtures[100];
-        int count = 0;
-        
-        generateFixtures(0, teamCount, fixtures, count);
-        
-        for (int i = 0; i < count && i < 10; i++) {
-            cout << fixtures[i] << endl;
-        }
-    }
-    
-    void showAllTeams() {
-        cout << "\n=== ALL TEAMS ===" << endl;
-        if (teamCount == 0) {
-            cout << "No teams available!" << endl;
-            return;
-        }
-        
-        Team* sortedTeams[20];
-        for (int i = 0; i < teamCount; i++) sortedTeams[i] = teams[i];
-        
-        quickSortTeamsByName(sortedTeams, 0, teamCount - 1);
-        
-        for (int i = 0; i < teamCount; i++) {
-            cout << i + 1 << ". ";
-            sortedTeams[i]->display();
-        }
-    }
-    
-    void showMenu() {
-        cout << "\n==== CRICKET TOURNAMENT MANAGEMENT ====" << endl;
-        cout << "1. Add Team" << endl;
-        cout << "2. Add Player to Team" << endl;
-        cout << "3. Schedule Match" << endl;
-        cout << "4. Play Next Match" << endl;
-        cout << "5. Undo Last Action" << endl;
-        cout << "6. Show Points Table (Merge Sort)" << endl;
-        cout << "7. Show Top Players (Merge Sort)" << endl;
-        cout << "8. Search Player (Binary Search)" << endl;
-        cout << "9. Search Team" << endl;
-        cout << "10. Show Tournament Tree (Recursion)" << endl;
-        cout << "11. Generate Fixtures (Backtracking)" << endl;
-        cout << "12. Show All Teams (Quick Sort by Name)" << endl;
-        cout << "13. Exit" << endl;
-        cout << "Choose option: ";
+        } while (choice != 10);
     }
 };
 
-// ====================== MAIN ======================
-
+// ==================== MAIN FUNCTION ====================
 int main() {
     CricketTournament tournament;
-    int choice;
-    
-    srand(time(0)); 
-    
-    
-    tournament.addTeam("India");
-    tournament.addTeam("Australia");
-    tournament.addTeam("England");
-    
-    tournament.addPlayer("Virat Kohli", "Batsman", 1);
-    tournament.addPlayer("Rohit Sharma", "Batsman", 1);
-    tournament.addPlayer("Steve Smith", "Batsman", 2);
-    tournament.addPlayer("Pat Cummins", "Bowler", 2);
-    tournament.addPlayer("Joe Root", "Batsman", 3);
-    
-    tournament.scheduleMatch(1, 2);
-    tournament.scheduleMatch(1, 3);
-    tournament.scheduleMatch(2, 3);
-    
-    cout << "\nWelcome to Cricket Tournament Management System!" << endl;
-    cout << "Sample data loaded: 3 teams, 5 players, 3 matches scheduled." << endl;
-    
-    do {
-        tournament.showMenu();
-        cin >> choice;
-        
-        switch(choice) {
-            case 1: {
-                string name;
-                cout << "Enter team name: ";
-                cin.ignore();
-                getline(cin, name);
-                tournament.addTeam(name);
-                break;
-            }
-            case 2: {
-                string name, type;
-                int teamId;
-                cout << "Enter player name: ";
-                cin.ignore();
-                getline(cin, name);
-                cout << "Enter player type (Batsman/Bowler): ";
-                getline(cin, type);
-                cout << "Enter team ID: ";
-                cin >> teamId;
-                tournament.addPlayer(name, type, teamId);
-                break;
-            }
-            case 3: {
-                int t1, t2;
-                cout << "Enter team 1 ID: ";
-                cin >> t1;
-                cout << "Enter team 2 ID: ";
-                cin >> t2;
-                tournament.scheduleMatch(t1, t2);
-                break;
-            }
-            case 4:
-                tournament.playMatch();
-                break;
-            case 5:
-                tournament.undo();
-                break;
-            case 6:
-                tournament.showPointsTable();
-                break;
-            case 7:
-                tournament.showTopPlayers();
-                break;
-            case 8:
-                tournament.searchPlayer();
-                break;
-            case 9:
-                tournament.searchTeam();
-                break;
-            case 10:
-                tournament.showTournamentTree();
-                break;
-            case 11:
-                tournament.generateAllFixtures();
-                break;
-            case 12:
-                tournament.showAllTeams();
-                break;
-            case 13:
-                cout << "\nThank you for using Cricket Tournament Management System!" << endl;
-                break;
-            default:
-                cout << "Invalid choice! Please try again." << endl;
-        }
-        
-        cout << endl;
-        
-    } while (choice != 13);
-    
+    tournament.mainMenu();
     return 0;
 }
